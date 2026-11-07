@@ -42,13 +42,14 @@
         const pw = $("#loginPw").value;
         try {
           const r = await _fetch("/api/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ password: pw }) });
-          const j = await r.json();
+          const j = await r.json().catch(() => null);
+          if (!j) throw new Error("Failed to fetch");
           if (!r.ok) throw new Error(j.error || "Giriş yapılamadı");
           token = j.token; store.set(token);
           el.remove(); document.body.classList.remove("locked");
           if (!started) start();
         } catch (err) {
-          $("#loginErr").textContent = err.message === "Failed to fetch" ? "Sunucuya ulaşılamadı — panel yalnızca bilgisayarda python3 server.py ile çalışır." : err.message;
+          $("#loginErr").textContent = err.message === "Failed to fetch" ? "Panel bu adreste çalışmaz. Paneli bilgisayarında python3 server.py ile açıp http://localhost:5173/admin/ adresinden gir." : err.message;
           $("#loginPw").select();
         }
       });
