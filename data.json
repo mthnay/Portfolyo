@@ -5,12 +5,32 @@
     "kicker": "Video Çekim · Kurgu · Spor İçerik",
     "about": "Sahadaki enerjiyi ekrana taşıyorum. Voleyboldan basketbola, maç günü atmosferinden oyuncu hikâyelerine kadar *çekimden kurguya* her aşamayı üstlenerek markalar için durdurulamayan içerikler üretiyorum.",
     "contactKicker": "Bir sonraki maç sizin.",
-    "contactLine1": "BİRLİKTE",
-    "contactLine2": "ÇEKELİM",
+    "contactLine1": "İLETİŞİM",
+    "contactLine2": "",
     "email": "dengizzsila35@gmail.com",
     "instagram": "https://instagram.com/dengizzsila",
     "linkedin": "",
-    "phone": ""
+    "phone": "",
+    "stats": [
+      {
+        "mode": "reels",
+        "value": "",
+        "suffix": "+",
+        "label": "Reel & kısa video"
+      },
+      {
+        "mode": "brands",
+        "value": "",
+        "suffix": "",
+        "label": "Marka & kulüp"
+      },
+      {
+        "mode": "custom",
+        "value": "2026",
+        "suffix": "",
+        "label": "Sezon"
+      }
+    ]
   },
   "customFields": [],
   "brands": [

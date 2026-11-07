@@ -55,7 +55,7 @@
     });
 
   async function load() {
-    const r = await fetch("../data.json", { cache: "no-store" });
+    const r = await fetch("/data.json", { cache: "no-store" });
     data = await r.json();
     data.customFields ||= [];
     data.showreel ||= { enabled: false, title: "SHOWREEL", clips: [] };
@@ -68,7 +68,7 @@
     const btn = $("#saveBtn");
     btn.disabled = true;
     try {
-      const r = await fetch("../api/data", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
+      const r = await fetch("/api/data", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
       const j = await r.json();
       if (!r.ok) throw new Error(j.error || "Kaydedilemedi");
       dirty = false;
@@ -172,6 +172,55 @@
           <label class="field"><span>Büyük başlık — 2. satır <em>(içi boş)</em></span><input type="text" data-bind="contactLine2"></label>
         </div></div>`;
     bind(v, data.settings);
+    const card = document.createElement("div");
+    card.className = "card";
+    v.insertBefore(card, v.children[1] || null);
+    renderStats(card);
+  }
+
+  function renderStats(card) {
+    const S = data.settings;
+    if (!Array.isArray(S.stats)) S.stats = [];
+    const auto = { reels: data.brands.reduce((s, b) => s + (b.reels?.length || 0), 0), brands: data.brands.length };
+    card.innerHTML = `
+      <div class="card__head"><h2>Ana ekran sayıları <small>${S.stats.length} adet</small></h2>
+        <button class="btn btn--sm" id="statAdd">＋ Sayı ekle</button></div>
+      <p class="desc">Ana ekrandaki büyük sayılar. "Otomatik" seçilirse sayı içeriklerden hesaplanır; sayısal değerler sitede sayarak açılır.</p>
+      <div class="rows">${S.stats.length ? S.stats.map((s, i) => `
+        <div class="row row--stat" data-i="${i}">
+          <select data-k="mode">
+            <option value="custom" ${s.mode === "custom" || !s.mode ? "selected" : ""}>Elle gir</option>
+            <option value="reels" ${s.mode === "reels" ? "selected" : ""}>Otomatik: reel sayısı (${auto.reels})</option>
+            <option value="brands" ${s.mode === "brands" ? "selected" : ""}>Otomatik: marka sayısı (${auto.brands})</option>
+          </select>
+          <input type="text" data-k="value" placeholder="Değer (örn. 150)" value="${esc(s.value ?? "")}" ${s.mode && s.mode !== "custom" ? "disabled" : ""}>
+          <input type="text" data-k="suffix" placeholder="Ek (+, K, %)" value="${esc(s.suffix ?? "")}">
+          <input type="text" data-k="label" placeholder="Açıklama" value="${esc(s.label ?? "")}">
+          <span style="display:flex;gap:4px">
+            <button class="icon-btn" data-act="up" title="Yukarı" ${i === 0 ? "disabled" : ""}>↑</button>
+            <button class="icon-btn" data-act="down" title="Aşağı" ${i === S.stats.length - 1 ? "disabled" : ""}>↓</button>
+            <button class="icon-btn" data-act="del" title="Sil">✕</button>
+          </span>
+        </div>`).join("") : `<div class="empty">Henüz sayı yok. Ana ekranda sayı bölümü gizlenir.</div>`}</div>`;
+    card.querySelector("#statAdd").onclick = () => {
+      S.stats.push({ mode: "custom", value: "", suffix: "", label: "" });
+      setDirty(); renderStats(card);
+    };
+    card.querySelectorAll(".row--stat").forEach((row) => {
+      const i = +row.dataset.i, s = S.stats[i];
+      row.querySelectorAll("[data-k]").forEach((el) => {
+        el.addEventListener(el.tagName === "SELECT" ? "change" : "input", () => {
+          s[el.dataset.k] = el.value; setDirty();
+          if (el.tagName === "SELECT") renderStats(card);
+        });
+      });
+      row.querySelectorAll("[data-act]").forEach((b) => (b.onclick = () => {
+        const act = b.dataset.act;
+        if (act === "del") S.stats.splice(i, 1);
+        else { const j = act === "up" ? i - 1 : i + 1; [S.stats[i], S.stats[j]] = [S.stats[j], S.stats[i]]; }
+        setDirty(); renderStats(card);
+      }));
+    });
   }
 
   function fieldInput(f, b) {
@@ -196,6 +245,12 @@
           <label class="field"><span>Bağlantı anahtarı <em>(site adresinde #anahtar)</em></span><input type="text" id="keyInput" value="${esc(b.key)}"></label>
           <label class="field"><span>Etiket <em>(örn. Çekim + Kurgu)</em></span><input type="text" data-bind="tag"></label>
           <label class="field"><span>Not</span><input type="text" data-bind="note" placeholder="örn. 2026 sezonu"></label>
+          <div class="field full"><span>Logo <em>(sitede numara yerine görünür; PNG/SVG, şeffaf arka plan önerilir)</em></span>
+            <div class="logo-up">
+              <div class="logo-up__prev">${b.logo ? `<img src="/${esc(b.logo)}" alt="">` : "<i>Logo yok</i>"}</div>
+              <label class="btn btn--sm">Dosya seç<input type="file" id="logoFile" accept="image/*" hidden></label>
+              ${b.logo ? `<button type="button" class="btn btn--sm btn--danger" id="logoDel">Kaldır</button>` : ""}
+            </div></div>
           <div class="field full"><span>Vurgu rengi</span>
             <div class="color"><input type="color" data-bind="color">
               <div class="swatches">${SWATCHES.map((c) => `<button type="button" data-c="${c}" style="background:${c}"></button>`).join("")}</div></div></div>
@@ -236,6 +291,15 @@
       if (k === "title") $("#viewTitle").textContent = b.title || "Adsız marka";
       renderSide();
     });
+    $("#logoFile", v)?.addEventListener("change", async (e) => {
+      const f = e.target.files[0]; if (!f) return;
+      try {
+        const r = await fetch("/api/upload?name=" + encodeURIComponent(f.name), { method: "POST", body: f });
+        const j = await r.json(); if (!r.ok) throw new Error(j.error);
+        b.logo = j.path; setDirty(); render(); toast("Logo yüklendi — Kaydet'e basmayı unutma");
+      } catch (err) { toast(err.message || "Yükleme hatası", true); }
+    });
+    $("#logoDel", v)?.addEventListener("click", () => { delete b.logo; setDirty(); render(); });
     $$("[data-c]", v).forEach((s) => s.addEventListener("click", () => { b.color = s.dataset.c; $('[data-bind="color"]', v).value = s.dataset.c; setDirty(); renderSide(); }));
     $$("[data-go]", v).forEach((s) => s.addEventListener("click", () => go(s.dataset.go)));
 
@@ -371,11 +435,14 @@
     v.innerHTML = `
       <div class="card">
         <div class="card__head"><h2>Ayarlar</h2><label class="switch"><input type="checkbox" data-bind="enabled"> Sitede göster</label></div>
-        <div class="grid"><label class="field"><span>Başlık</span><input type="text" data-bind="title"></label>
+        <div class="grid"><label class="field"><span>Başlık</span><input type="text" data-bind="title" placeholder="SHOWREEL"></label>
+          <label class="field"><span>Üst etiket <em>(başlığın üstündeki küçük yazı)</em></span><input type="text" data-bind="kicker" placeholder="Showreel"></label>
+          <label class="switch"><input type="checkbox" id="srShowBrand" ${R.showBrand !== false ? "checked" : ""}> Klip üstünde marka adını göster</label>
           <div class="field"><span>Toplam süre</span><div style="padding:10px 0;font-weight:600">${R.clips.length} klip · ${toClock(total)}</div></div></div>
       </div>
       <div class="card">
         <div class="card__head"><h2>Klipler <small>${R.clips.length}</small></h2></div>
+        <div class="sr-prev" id="srPrev" hidden><div class="sr-prev__frame"></div><div class="sr-prev__bar"><span id="srPrevInfo"></span><button class="btn btn--sm" id="srPrevClose">Kapat</button></div></div>
         <p class="desc">YouTube linki yapıştırın. Link "?t=" ile belirli bir saniyeyi gösteriyorsa (YouTube'da "Şu anda paylaş") başlangıç otomatik alınır. Ritim için 3–5 saniyelik anlar idealdir.</p>
         <div class="adder"><textarea id="srIn" placeholder="https://youtu.be/...?t=42"></textarea><button class="btn btn--primary" id="srAdd">Ekle</button></div>
         ${R.clips.length ? `<div class="rows" id="srRows">${R.clips.map((c, i) => `
@@ -386,7 +453,7 @@
             <label class="field"><span>Başlangıç (dk:sn)</span><input type="text" data-k="start" value="${toClock(+c.start || 0)}"></label>
             <label class="field"><span>Süre (sn)</span><input type="number" min="1" max="30" step="0.5" data-k="dur" value="${+c.dur || 4}"></label>
             <div style="display:flex;gap:6px">
-              <a class="btn btn--sm" target="_blank" href="https://www.youtube.com/watch?v=${esc(c.id)}&t=${Math.floor(+c.start || 0)}s" title="Bu andan YouTube'da aç">▶</a>
+              <button class="btn btn--sm" data-prev="${i}" title="Klibi burada önizle (başlangıçtan süre kadar)">▶ Önizle</button>
               <button class="btn btn--sm btn--danger" data-del="${i}">Sil</button>
             </div>
           </div>`).join("")}</div>` : `<div class="empty">Henüz klip yok.</div>`}
@@ -420,6 +487,15 @@
         })
       );
     });
+    $("#srShowBrand").addEventListener("change", (e) => { R.showBrand = e.target.checked; setDirty(); });
+    const prev = $("#srPrev");
+    $$("[data-prev]", v).forEach((x) => x.addEventListener("click", () => {
+      const c = R.clips[+x.dataset.prev], s = Math.floor(+c.start || 0), e = Math.ceil(s + (+c.dur || 4));
+      $(".sr-prev__frame", prev).innerHTML = `<iframe src="https://www.youtube-nocookie.com/embed/${encodeURIComponent(c.id)}?start=${s}&end=${e}&autoplay=1&rel=0&cc_load_policy=0" allow="autoplay; encrypted-media" referrerpolicy="strict-origin-when-cross-origin"></iframe>`;
+      $("#srPrevInfo").textContent = `Klip ${+x.dataset.prev + 1} · ${toClock(s)} → ${toClock(e)}`;
+      prev.hidden = false; prev.scrollIntoView({ behavior: "smooth", block: "center" });
+    }));
+    $("#srPrevClose").onclick = () => { prev.hidden = true; $(".sr-prev__frame", prev).innerHTML = ""; };
     $$("[data-del]", v).forEach((x) => x.addEventListener("click", () => { R.clips.splice(+x.dataset.del, 1); setDirty(); render(); }));
     if ($("#srRows")) sortable($("#srRows"), ".row", (a, b) => { move(R.clips, a, b); setDirty(); render(); });
   }
@@ -429,7 +505,7 @@
     v.innerHTML = `<div class="card"><div class="card__head"><h2>Otomatik yedekler</h2></div>
       <p class="desc">Her kayıttan önce eski hali yedeklenir (son 50 kayıt). Bir yedeği geri yüklemek mevcut içeriğin yerine geçer.</p><ul class="backups" id="bk"><li>Yükleniyor…</li></ul></div>`;
     try {
-      const list = await (await fetch("../api/backups")).json();
+      const list = await (await fetch("/api/backups")).json();
       const fmt = (n) => { const m = n.match(/data-(\d{4})(\d\d)(\d\d)-(\d\d)(\d\d)(\d\d)/); return m ? `${m[3]}.${m[2]}.${m[1]} · ${m[4]}:${m[5]}:${m[6]}` : n; };
       $("#bk").innerHTML = list.length
         ? list.map((n) => `<li><span>${fmt(n)}</span><button class="btn btn--sm" data-r="${esc(n)}">Geri yükle</button></li>`).join("")
@@ -437,7 +513,7 @@
       $$("[data-r]", v).forEach((b) =>
         b.addEventListener("click", async () => {
           if (!(await confirmBox(`${fmt(b.dataset.r)} tarihli yedek geri yüklensin mi? Kaydedilmemiş değişiklikler kaybolur.`, "Geri yükle"))) return;
-          const r = await fetch("../api/restore?name=" + encodeURIComponent(b.dataset.r), { method: "POST" });
+          const r = await fetch("/api/restore?name=" + encodeURIComponent(b.dataset.r), { method: "POST" });
           if (!r.ok) return toast("Geri yüklenemedi", true);
           await load(); setDirty(false); $("#status").textContent = "";
           toast("Yedek geri yüklendi"); go("settings");

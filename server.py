@@ -16,6 +16,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 DATA = ROOT / "data.json"
+LOGOS = Path(__file__).parent / "logos"
 BACKUPS = ROOT / "backups"
 PORT = 5173
 KEEP_BACKUPS = 50
@@ -89,6 +90,22 @@ class Handler(SimpleHTTPRequestHandler):
         return self._json(200, {"ok": True, "savedAt": datetime.now().isoformat(timespec="seconds")})
 
     def do_POST(self):
+        # /api/upload?name=dosya.png  (gövde: ham dosya)
+        if self.path.startswith("/api/upload"):
+            from urllib.parse import parse_qs, urlparse
+            import re, time
+            name = parse_qs(urlparse(self.path).query).get("name", [""])[0]
+            ext = Path(name).suffix.lower()
+            if ext not in {".png", ".jpg", ".jpeg", ".webp", ".svg", ".gif"}:
+                return self._json(400, {"error": "Sadece PNG, JPG, WEBP, SVG, GIF"})
+            length = int(self.headers.get("Content-Length", 0))
+            if not 0 < length <= 5 * 1024 * 1024:
+                return self._json(400, {"error": "Dosya 5 MB'tan küçük olmalı"})
+            stem = re.sub(r"[^a-z0-9-]+", "-", Path(name).stem.lower()).strip("-") or "logo"
+            LOGOS.mkdir(exist_ok=True)
+            out = LOGOS / f"{stem}-{int(time.time())}{ext}"
+            out.write_bytes(self.rfile.read(length))
+            return self._json(200, {"ok": True, "path": f"logos/{out.name}"})
         # /api/restore?name=data-....json
         if self.path.startswith("/api/restore"):
             from urllib.parse import parse_qs, urlparse

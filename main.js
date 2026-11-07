@@ -36,14 +36,18 @@
   if (S.contactKicker) $(".contact__kicker").textContent = S.contactKicker;
   const ct = $$(".contact__title [data-split]");
   if (S.contactLine1) ct[0].textContent = S.contactLine1;
-  if (S.contactLine2) ct[1].textContent = S.contactLine2;
+  if (S.contactLine2) ct[1].textContent = S.contactLine2; else if ("contactLine2" in S) ct[1].remove();
   $(".foot span").textContent = `© ${new Date().getFullYear()} ${S.name || ""}`;
 
   const SR = RAW.showreel || {};
   const brandOf = (key) => (RAW.brands || []).find((b) => b.key === key);
   const SR_CLIPS = (SR.clips || []).filter((c) => c.id && (!c.brand || brandOf(c.brand)?.visible !== false));
   if (!SR.enabled || !SR_CLIPS.length) $("#showreel").remove();
-  else if (SR.title) $("#srTitle").textContent = SR.title;
+  else {
+    if (SR.title) $("#srTitle").textContent = SR.title;
+    if (SR.kicker) $(".sr__kicker").innerHTML = `<i></i> ${esc(SR.kicker)}`;
+    if (SR.showBrand === false) $("#srBrand").remove();
+  }
 
   /* ---------- Build DOM from data ---------- */
   const totalReels = D.brands.reduce((s, b) => s + b.reels.length, 0);
@@ -94,18 +98,18 @@
       return `
       <section class="brand" id="${esc(b.key)}" style="--accent:${esc(b.color || "#ff2d3d")}">
         <div class="brand__head">
-          <span class="brand__num">${pad(i + 1)}</span>
+          ${b.logo ? `<span class="brand__num brand__logo"><img src="${esc(b.logo)}" alt="${esc(b.title)} logosu" loading="lazy"></span>` : `<span class="brand__num brand__logo brand__logo--txt">${esc((b.title || "?").split(/\s+/).map((w) => w[0]).join("").slice(0, 2).toLocaleUpperCase("tr"))}</span>`}
           <h2 class="brand__title" data-split>${esc(b.title)}</h2>
           <div class="brand__info">
             ${b.tag ? `<span class="pill pill--accent">${esc(b.tag)}</span>` : ""}
-            ${yt ? `<span class="pill">YouTube</span>` : ""}
-            ${reels ? `<span class="pill">Instagram</span>` : ""}
+            ${yt ? `<button type="button" class="pill pill--jump" data-jump="yt">YouTube ↓</button>` : ""}
+            ${reels ? `<button type="button" class="pill pill--jump" data-jump="ig">Instagram ↓</button>` : ""}
             ${extra}
             ${b.note ? `<span class="brand__note">${esc(b.note)}</span>` : ""}
           </div>
         </div>
-        ${yt ? `<div class="brand__label"><b>▶</b> YouTube</div><div class="yt">${yt}</div>` : ""}
-        ${reels ? `<div class="brand__label"><b>●</b> Instagram Reels · ${b.reels.length}</div>
+        ${yt ? `<div class="brand__label" data-anchor="yt"><b>▶</b> YouTube</div><div class="yt">${yt}</div>` : ""}
+        ${reels ? `<div class="brand__label" data-anchor="ig"><b>●</b> Instagram Reels · ${b.reels.length}</div>
         <div class="reels"><div class="reels__track">${reels}
           <div class="reels__end"><b>${pad(b.reels.length)}</b><span>${esc(b.title)} için<br>üretilen reel</span></div>
         </div></div>` : ""}
@@ -156,6 +160,20 @@
     })
   );
 
+  /* ---------- Hero stats ---------- */
+  const STATS = (S.stats || [
+    { mode: "reels", suffix: "+", label: "Reel & kısa video" },
+    { mode: "brands", label: "Marka & kulüp" },
+    { mode: "custom", value: "2026", label: "Sezon" },
+  ]).map((s) => {
+    const raw = s.mode === "reels" ? totalReels : s.mode === "brands" ? D.brands.length : String(s.value ?? "").trim();
+    const num = typeof raw === "number" ? raw : /^\d+$/.test(raw) && raw.length < 4 ? Number(raw) : null;
+    return { num, text: String(raw), suffix: s.suffix || "", label: s.label || "" };
+  });
+  const metaEl = $(".hero__meta");
+  metaEl.innerHTML = STATS.map((s, i) => `<div><b id="stat${i}">${s.num !== null ? "0" : esc(s.text + s.suffix)}</b><span>${esc(s.label)}</span></div>`).join("");
+  if (!STATS.length) metaEl.remove();
+
   /* ---------- Preloader → hero intro ---------- */
   document.body.classList.add("loading");
   const counter = { v: 0 };
@@ -165,8 +183,7 @@
     .to(".hero__sign text", { strokeDashoffset: 0, duration: 2.2, ease: "power2.inOut", onComplete: () => $(".hero__sign").classList.add("is-filled") }, "-=0.6")
     .from(".hero__kicker, .hero__meta > div, .hero__scroll", { y: 30, opacity: 0, stagger: 0.08, duration: 0.8, ease: "power3.out" }, "<0.2")
     .from(".nav", { yPercent: -100, opacity: 0, duration: 0.8, ease: "power3.out" }, "<")
-    .add(() => countUp("#statReels", totalReels, "+"), "<")
-    .add(() => countUp("#statBrands", D.brands.length), "<");
+    .add(() => STATS.forEach((s, i) => s.num !== null && countUp("#stat" + i, s.num, s.suffix)), "<");
 
   gsap.timeline()
     .to(counter, { v: 100, duration: reduce ? 0.2 : 1.8, ease: "power2.inOut", onUpdate: () => {
@@ -296,9 +313,10 @@
 
   /* ---------- Modal ---------- */
   const modal = $("#modal"), body = $("#modalBody");
-  const open = (html, wide) => {
+  const open = (html, wide, reel) => {
     body.innerHTML = html;
     body.classList.toggle("is-wide", !!wide);
+    body.classList.toggle("is-reel", !!reel);
     modal.classList.add("is-open");
     lenis.stop();
     gsap.to(modal, { opacity: 1, duration: 0.35 });
@@ -313,8 +331,14 @@
   addEventListener("keydown", (e) => e.key === "Escape" && modal.classList.contains("is-open") && close());
 
   document.addEventListener("click", (e) => {
+    const jb = e.target.closest("[data-jump]");
+    if (jb) {
+      const t = jb.closest(".brand")?.querySelector(`[data-anchor="${jb.dataset.jump}"]`);
+      if (t) lenis.scrollTo(t, { offset: -110, duration: 1.2 });
+      return;
+    }
     const ph = e.target.closest(".phone");
-    if (ph) return open(`<iframe src="https://www.instagram.com/reel/${ph.dataset.reel}/embed/" allow="autoplay; encrypted-media" allowfullscreen></iframe>`);
+    if (ph) return open(`<iframe src="https://www.instagram.com/reel/${ph.dataset.reel}/embed/" allow="autoplay; encrypted-media; fullscreen" allowfullscreen scrolling="no"></iframe>`, false, true);
     const yt = e.target.closest("[data-yt]");
     if (yt) {
       const m = yt.dataset.yt.match(/(?:v=|youtu\.be\/|shorts\/)([\w-]{11})/);
@@ -340,6 +364,7 @@
       const c = SR_CLIPS[n], b = brandOf(c.brand);
       frame.style.setProperty("--c", colorOf(c));
       $("#srIdx").textContent = pad(n + 1);
+      if (!brandEl.isConnected) return;
       brandEl.innerHTML = b ? `<small>${esc(b.tag || "")}</small><span>${esc(b.title)}</span>` : "";
       gsap.fromTo(brandEl.querySelector("span"), { yPercent: 110 }, { yPercent: 0, duration: 0.8, ease: "expo.out" });
       fills.forEach((f, k) => gsap.set(f, { scaleX: k < n ? 1 : 0 }));
