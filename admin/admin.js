@@ -125,7 +125,7 @@
       const st = $("#status");
       st.className = "status saved";
       st.textContent = "✓ Kaydedildi · " + new Date().toLocaleTimeString("tr", { hour: "2-digit", minute: "2-digit" });
-      toast(window.__SD_STATIC__ ? "Kaydedildi — site 1-2 dakika içinde güncellenir" : "Değişiklikler kaydedildi");
+      toast(window.__SD_STATIC__ ? "data.json indirildi — GitHub'a yükleyince site güncellenir" : "Değişiklikler kaydedildi");
     } catch (e) {
       btn.disabled = false;
       toast(e.message === "Failed to fetch" ? "Sunucuya ulaşılamadı. 'python3 server.py' çalışıyor mu?" : e.message, true);
@@ -248,7 +248,7 @@
         if (!r.ok) throw new Error(j.error);
         token = j.token; store.set(token);
         $$("input", pc).forEach((i) => (i.value = ""));
-        toast("Şifre değiştirildi");
+        toast(j.needsSave ? "Şifre değişti — Kaydet'e basıp data.json'u GitHub'a yükle" : "Şifre değiştirildi");
       } catch (e) { toast(e.message || "Şifre değiştirilemedi", true); }
     };
   }
@@ -322,7 +322,7 @@
           <label class="field"><span>Not</span><input type="text" data-bind="note" placeholder="örn. 2026 sezonu"></label>
           <div class="field full"><span>Logo <em>(sitede numara yerine görünür; PNG/SVG, şeffaf arka plan önerilir)</em></span>
             <div class="logo-up">
-              <div class="logo-up__prev${b.logoFit === "cover" ? " is-cover" : ""}">${b.logo ? `<img src="${esc(LOGO_PREVIEW[b.logo] || "/" + b.logo)}" alt="">` : "<i>Logo yok</i>"}</div>
+              <div class="logo-up__prev${b.logoFit === "cover" ? " is-cover" : ""}">${b.logo ? `<img src="${esc(LOGO_PREVIEW[b.logo] || (b.logo.startsWith("data:") ? b.logo : "/" + b.logo))}" alt="">` : "<i>Logo yok</i>"}</div>
               <label class="btn btn--sm">Dosya seç<input type="file" id="logoFile" accept="image/*" hidden></label>
               ${b.logo ? `<button type="button" class="btn btn--sm btn--danger" id="logoDel">Kaldır</button>` : ""}
               ${b.logo ? `<label class="switch"><input type="checkbox" id="logoCover" ${b.logoFit === "cover" ? "checked" : ""}> Daireyi tamamen doldur <em style="color:var(--mute);font-style:normal">(arka planlı logolar için)</em></label>` : ""}
@@ -614,10 +614,17 @@
   addEventListener("keydown", (e) => { if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "s") { e.preventDefault(); save(); } });
   addEventListener("beforeunload", (e) => { if (dirty) { e.preventDefault(); e.returnValue = ""; } });
 
+  window.addEventListener("sd-dirty", () => setDirty());
   function start() {
     started = true;
+    if (window.__SD_STATIC__ && !$(".webnote")) {
+      const n = document.createElement("div");
+      n.className = "webnote";
+      n.innerHTML = `<b>Web modu</b> Kaydet'e basınca güncel <code>data.json</code> bilgisayarına iner. Onu GitHub deposuna yükleyince (Add file → Upload files) site 1-2 dakikada güncellenir.${window.__SD_DRAFT__ ? " <em>Henüz yüklenmemiş son kaydınla devam ediyorsun.</em>" : ""}`;
+      $(".top").after(n);
+    }
     load()
-      .then(() => go("settings"))
+      .then(() => { if (window.__SD_DRAFT__ && $(".webnote") && !$(".webnote em")) $(".webnote").insertAdjacentHTML("beforeend", " <em>Henüz GitHub'a yüklenmemiş son kaydınla devam ediyorsun.</em>"); go("settings"); })
       .catch(() => ($("#view").innerHTML = `<div class="empty">data.json okunamadı. Paneli <b>python3 server.py</b> ile açın.</div>`));
   }
   $("#logoutBtn").onclick = async () => {
