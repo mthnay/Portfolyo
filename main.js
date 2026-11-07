@@ -81,7 +81,7 @@
           (r, j) => `
         <div class="phone" data-cursor="OYNAT" data-reel="${esc(r.id)}">
           <span class="phone__notch"></span>
-          <div class="phone__screen"><div class="phone__skel"></div></div>
+          <div class="phone__screen"><div class="phone__skel"></div><img class="phone__cover" src="covers/${esc(r.id)}.jpg" alt="" loading="lazy" decoding="async"></div>
           <button class="phone__hit" aria-label="${esc(b.title)} reel ${j + 1} oynat">
             <span class="phone__idx">${pad(j + 1)}</span><span class="phone__ig">Reel</span>
           </button>
@@ -98,7 +98,7 @@
       return `
       <section class="brand" id="${esc(b.key)}" style="--accent:${esc(b.color || "#ff2d3d")}">
         <div class="brand__head">
-          ${b.logo ? `<span class="brand__num brand__logo"><img src="${esc(b.logo)}" alt="${esc(b.title)} logosu" loading="lazy"></span>` : `<span class="brand__num brand__logo brand__logo--txt">${esc((b.title || "?").split(/\s+/).map((w) => w[0]).join("").slice(0, 2).toLocaleUpperCase("tr"))}</span>`}
+          ${b.logo ? `<span class="brand__num brand__logo${b.logoFit === "cover" ? " brand__logo--cover" : ""}"><img src="${esc(b.logo)}" alt="${esc(b.title)} logosu" loading="lazy"></span>` : `<span class="brand__num brand__logo brand__logo--txt">${esc((b.title || "?").split(/\s+/).map((w) => w[0]).join("").slice(0, 2).toLocaleUpperCase("tr"))}</span>`}
           <h2 class="brand__title" data-split>${esc(b.title)}</h2>
           <div class="brand__info">
             ${b.tag ? `<span class="pill pill--accent">${esc(b.tag)}</span>` : ""}
@@ -281,7 +281,8 @@
   const pump = () => {
     while (loading < MAX_PARALLEL && queue.length) {
       const ph = queue.shift();
-      if (!ph._want || $("iframe", ph)) continue;
+      // Kapak görseli varsa Instagram embed hiç yüklenmez; yalnızca kapağı olmayanlar için yedek
+      if (!ph._want || $("iframe", ph) || !ph.classList.contains("no-cover")) continue;
       loading++;
       const f = document.createElement("iframe");
       f.title = "Instagram reel";
@@ -309,7 +310,14 @@
     }),
     { rootMargin: "100px 250px" }
   );
-  $$(".phone").forEach((p) => io.observe(p));
+  $$(".phone").forEach((p) => {
+    const img = $(".phone__cover", p);
+    const ok = () => p.classList.add("is-loaded", "has-cover");
+    const bad = () => { img.remove(); p.classList.add("no-cover"); if (p._want) { queue.push(p); pump(); } };
+    if (img.complete) (img.naturalWidth ? ok() : bad());
+    else { img.addEventListener("load", ok); img.addEventListener("error", bad); }
+    io.observe(p);
+  });
 
   /* ---------- Modal ---------- */
   const modal = $("#modal"), body = $("#modalBody");

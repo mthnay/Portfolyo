@@ -72,7 +72,9 @@
         "DeHuFDOqV33",
         "DcOTWMFI3Dc",
         "DeUooMoKPxs"
-      ]
+      ],
+      "logo": "logos/4bir4bir.png",
+      "logoFit": "cover"
     },
     {
       "key": "cev-tr",
@@ -95,7 +97,9 @@
         "DYCQ-GgsDds",
         "DXXHgcws1M4",
         "DXG3R2UM4x_"
-      ]
+      ],
+      "logo": "logos/cev.png",
+      "logoFit": "contain"
     },
     {
       "key": "cev-eu",
@@ -119,7 +123,9 @@
         "DcdC6mKIfDS",
         "DcQ5c_toOkO",
         "DcRb5UdIZ1t"
-      ]
+      ],
+      "logo": "logos/cev.png",
+      "logoFit": "contain"
     },
     {
       "key": "diabolica",
@@ -143,7 +149,9 @@
         "DXPShYHDW_o",
         "DV8g0M_jVZo",
         "DPsv2n3igpJ"
-      ]
+      ],
+      "logo": "logos/diabolica.png",
+      "logoFit": "contain"
     },
     {
       "key": "oyunu-degistir",
@@ -166,7 +174,9 @@
         "DUsh7XWghqv",
         "DUs8upqAnvZ",
         "DQhioqlAt-0"
-      ]
+      ],
+      "logo": "logos/oyunu-degistir.png",
+      "logoFit": "cover"
     },
     {
       "key": "basket-house",
@@ -182,7 +192,9 @@
         "DaDHX-4sPSD",
         "DZelrGQOc8H",
         "DXSN9k6Dpps"
-      ]
+      ],
+      "logo": "logos/basket-house.png",
+      "logoFit": "contain"
     },
     {
       "key": "skordan-bagimsiz",
@@ -199,7 +211,9 @@
         "DZviEsHKBQ3",
         "DYITTyKKNZ-",
         "DUiWrkCipDn"
-      ]
+      ],
+      "logo": "logos/skordan-bagimsiz.png",
+      "logoFit": "cover"
     }
   ],
   "showreel": {

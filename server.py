@@ -8,7 +8,10 @@ Panel:       http://localhost:5173/admin/
 Yalnızca bu bilgisayardan (127.0.0.1) erişilebilir. Her kayıtta eski
 data.json, backups/ klasörüne tarih damgasıyla yedeklenir.
 """
+import hashlib
+import hmac
 import json
+import secrets
 import shutil
 from datetime import datetime
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
@@ -19,6 +22,25 @@ DATA = ROOT / "data.json"
 LOGOS = Path(__file__).parent / "logos"
 BACKUPS = ROOT / "backups"
 PORT = 5173
+AUTH = ROOT / "auth.json"          # panel şifresinin özeti (şifrenin kendisi saklanmaz)
+DEFAULT_PASSWORD = "7213"
+TOKENS: set[str] = set()           # açık oturumlar (sunucu yeniden başlayınca sıfırlanır)
+
+
+def _hash(pw: str, salt: str) -> str:
+    return hashlib.pbkdf2_hmac("sha256", pw.encode(), bytes.fromhex(salt), 200_000).hex()
+
+
+def set_password(pw: str) -> None:
+    salt = secrets.token_hex(16)
+    AUTH.write_text(json.dumps({"salt": salt, "hash": _hash(pw, salt)}), encoding="utf-8")
+
+
+def check_password(pw: str) -> bool:
+    if not AUTH.exists():
+        set_password(DEFAULT_PASSWORD)
+    a = json.loads(AUTH.read_text(encoding="utf-8"))
+    return hmac.compare_digest(_hash(pw, a["salt"]), a["hash"])
 KEEP_BACKUPS = 50
 
 
@@ -60,7 +82,22 @@ class Handler(SimpleHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    def _body_json(self):
+        length = int(self.headers.get("Content-Length", 0))
+        return json.loads(self.rfile.read(length).decode("utf-8") or "{}")
+
+    def _authed(self) -> bool:
+        tok = self.headers.get("X-Auth", "")
+        if tok and tok in TOKENS:
+            return True
+        self._json(401, {"error": "Oturum gerekli"})
+        return False
+
     def do_GET(self):
+        if self.path.startswith("/auth.json"):
+            return self._json(404, {"error": "Bulunamadı"})
+        if self.path.startswith("/api/") and not self._authed():
+            return
         if self.path.startswith("/api/backups"):
             files = sorted(BACKUPS.glob("data-*.json"), reverse=True) if BACKUPS.exists() else []
             return self._json(200, [f.name for f in files])
@@ -71,6 +108,8 @@ class Handler(SimpleHTTPRequestHandler):
     def do_PUT(self):
         if self.path != "/api/data":
             return self._json(404, {"error": "Bulunamadı"})
+        if not self._authed():
+            return
         try:
             length = int(self.headers.get("Content-Length", 0))
             data = json.loads(self.rfile.read(length).decode("utf-8"))
@@ -87,9 +126,44 @@ class Handler(SimpleHTTPRequestHandler):
         tmp = DATA.with_suffix(".json.tmp")
         tmp.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
         tmp.replace(DATA)
+        try:
+            import threading, covers_fetch
+            threading.Thread(target=covers_fetch.fetch_missing, args=(data,), daemon=True).start()
+        except Exception as e:
+            print("kapak indirme başlatılamadı:", e)
         return self._json(200, {"ok": True, "savedAt": datetime.now().isoformat(timespec="seconds")})
 
     def do_POST(self):
+        if self.path == "/api/login":
+            try:
+                pw = str(self._body_json().get("password", ""))
+            except Exception:
+                pw = ""
+            if not check_password(pw):
+                return self._json(401, {"error": "Şifre yanlış"})
+            tok = secrets.token_urlsafe(24)
+            TOKENS.add(tok)
+            return self._json(200, {"ok": True, "token": tok})
+        if not self._authed():
+            return
+        if self.path == "/api/logout":
+            TOKENS.discard(self.headers.get("X-Auth", ""))
+            return self._json(200, {"ok": True})
+        if self.path == "/api/password":
+            try:
+                b = self._body_json()
+            except Exception:
+                return self._json(400, {"error": "Geçersiz istek"})
+            if not check_password(str(b.get("current", ""))):
+                return self._json(400, {"error": "Mevcut şifre yanlış"})
+            new = str(b.get("new", ""))
+            if len(new) < 4:
+                return self._json(400, {"error": "Yeni şifre en az 4 karakter olmalı"})
+            set_password(new)
+            TOKENS.clear()
+            tok = secrets.token_urlsafe(24)
+            TOKENS.add(tok)
+            return self._json(200, {"ok": True, "token": tok})
         # /api/upload?name=dosya.png  (gövde: ham dosya)
         if self.path.startswith("/api/upload"):
             from urllib.parse import parse_qs, urlparse

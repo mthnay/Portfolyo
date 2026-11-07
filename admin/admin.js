@@ -9,6 +9,54 @@
   const SWATCHES = ["#ff2d3d", "#ff7a1a", "#ffb800", "#d7ff3a", "#2dffc4", "#3aa8ff", "#b45cff", "#ff4fd8", "#f1efe9"];
   const FIELD_TYPES = { text: "Kısa metin", textarea: "Uzun metin", number: "Sayı", date: "Tarih", url: "Link", checkbox: "Evet / Hayır" };
 
+  /* ---------- Giriş / oturum ---------- */
+  const store = { get: () => { try { return sessionStorage.getItem("sd-auth") || ""; } catch { return ""; } },
+                  set: (v) => { try { v ? sessionStorage.setItem("sd-auth", v) : sessionStorage.removeItem("sd-auth"); } catch {} } };
+  let token = store.get();
+  const _fetch = window.fetch.bind(window);
+  window.fetch = (url, opt = {}) => {
+    const api = String(url).startsWith("/api/");
+    if (api) opt = { ...opt, headers: { ...(opt.headers || {}), "X-Auth": token } };
+    return _fetch(url, opt).then((r) => {
+      if (api && r.status === 401 && url !== "/api/login") showLogin();
+      return r;
+    });
+  };
+  let started = false;
+  function showLogin(msg) {
+    token = ""; store.set("");
+    document.body.classList.add("locked");
+    let el = $("#login");
+    if (!el) {
+      el = document.createElement("div");
+      el.id = "login"; el.className = "login";
+      el.innerHTML = `<form class="login__box" autocomplete="off">
+          <div class="side__brand">SD<i>.</i> <span>Panel</span></div>
+          <label class="field"><span>Şifre</span><input type="password" id="loginPw" inputmode="numeric" autofocus></label>
+          <p class="login__err" id="loginErr"></p>
+          <button class="btn btn--primary" type="submit">Giriş yap</button>
+        </form>`;
+      document.body.append(el);
+      $("form", el).addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const pw = $("#loginPw").value;
+        try {
+          const r = await _fetch("/api/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ password: pw }) });
+          const j = await r.json();
+          if (!r.ok) throw new Error(j.error || "Giriş yapılamadı");
+          token = j.token; store.set(token);
+          el.remove(); document.body.classList.remove("locked");
+          if (!started) start();
+        } catch (err) {
+          $("#loginErr").textContent = err.message === "Failed to fetch" ? "Sunucuya ulaşılamadı — panel yalnızca bilgisayarda python3 server.py ile çalışır." : err.message;
+          $("#loginPw").select();
+        }
+      });
+    }
+    $("#loginErr").textContent = msg || "";
+    setTimeout(() => $("#loginPw")?.focus(), 50);
+  }
+
   let data = null;
   let current = "settings"; // "settings" | "fields" | "backups" | brand key
   let dirty = false;
@@ -176,6 +224,31 @@
     card.className = "card";
     v.insertBefore(card, v.children[1] || null);
     renderStats(card);
+    const pc = document.createElement("div");
+    pc.className = "card";
+    pc.innerHTML = `<div class="card__head"><h2>Panel şifresi</h2></div>
+      <p class="desc">Panele girişte sorulan şifre. Değiştirince diğer açık oturumlar kapanır.</p>
+      <div class="grid">
+        <label class="field"><span>Mevcut şifre</span><input type="password" id="pwCur" autocomplete="current-password"></label>
+        <span></span>
+        <label class="field"><span>Yeni şifre <em>(en az 4 karakter)</em></span><input type="password" id="pwNew" autocomplete="new-password"></label>
+        <label class="field"><span>Yeni şifre (tekrar)</span><input type="password" id="pwNew2" autocomplete="new-password"></label>
+      </div>
+      <div style="margin-top:14px"><button class="btn btn--primary btn--sm" id="pwSave">Şifreyi değiştir</button></div>`;
+    v.append(pc);
+    $("#pwSave", pc).onclick = async () => {
+      const cur = $("#pwCur").value, n1 = $("#pwNew").value, n2 = $("#pwNew2").value;
+      if (n1 !== n2) return toast("Yeni şifreler aynı değil", true);
+      if (n1.length < 4) return toast("Yeni şifre en az 4 karakter olmalı", true);
+      try {
+        const r = await fetch("/api/password", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ current: cur, new: n1 }) });
+        const j = await r.json();
+        if (!r.ok) throw new Error(j.error);
+        token = j.token; store.set(token);
+        $$("input", pc).forEach((i) => (i.value = ""));
+        toast("Şifre değiştirildi");
+      } catch (e) { toast(e.message || "Şifre değiştirilemedi", true); }
+    };
   }
 
   function renderStats(card) {
@@ -247,9 +320,10 @@
           <label class="field"><span>Not</span><input type="text" data-bind="note" placeholder="örn. 2026 sezonu"></label>
           <div class="field full"><span>Logo <em>(sitede numara yerine görünür; PNG/SVG, şeffaf arka plan önerilir)</em></span>
             <div class="logo-up">
-              <div class="logo-up__prev">${b.logo ? `<img src="/${esc(b.logo)}" alt="">` : "<i>Logo yok</i>"}</div>
+              <div class="logo-up__prev${b.logoFit === "cover" ? " is-cover" : ""}">${b.logo ? `<img src="/${esc(b.logo)}" alt="">` : "<i>Logo yok</i>"}</div>
               <label class="btn btn--sm">Dosya seç<input type="file" id="logoFile" accept="image/*" hidden></label>
               ${b.logo ? `<button type="button" class="btn btn--sm btn--danger" id="logoDel">Kaldır</button>` : ""}
+              ${b.logo ? `<label class="switch"><input type="checkbox" id="logoCover" ${b.logoFit === "cover" ? "checked" : ""}> Daireyi tamamen doldur <em style="color:var(--mute);font-style:normal">(arka planlı logolar için)</em></label>` : ""}
             </div></div>
           <div class="field full"><span>Vurgu rengi</span>
             <div class="color"><input type="color" data-bind="color">
@@ -299,6 +373,7 @@
         b.logo = j.path; setDirty(); render(); toast("Logo yüklendi — Kaydet'e basmayı unutma");
       } catch (err) { toast(err.message || "Yükleme hatası", true); }
     });
+    $("#logoCover", v)?.addEventListener("change", (e) => { b.logoFit = e.target.checked ? "cover" : "contain"; setDirty(); render(); });
     $("#logoDel", v)?.addEventListener("click", () => { delete b.logo; setDirty(); render(); });
     $$("[data-c]", v).forEach((s) => s.addEventListener("click", () => { b.color = s.dataset.c; $('[data-bind="color"]', v).value = s.dataset.c; setDirty(); renderSide(); }));
     $$("[data-go]", v).forEach((s) => s.addEventListener("click", () => go(s.dataset.go)));
@@ -536,7 +611,20 @@
   addEventListener("keydown", (e) => { if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "s") { e.preventDefault(); save(); } });
   addEventListener("beforeunload", (e) => { if (dirty) { e.preventDefault(); e.returnValue = ""; } });
 
-  load()
-    .then(() => go("settings"))
-    .catch(() => ($("#view").innerHTML = `<div class="empty">data.json okunamadı. Paneli <b>python3 server.py</b> ile açın.</div>`));
+  function start() {
+    started = true;
+    load()
+      .then(() => go("settings"))
+      .catch(() => ($("#view").innerHTML = `<div class="empty">data.json okunamadı. Paneli <b>python3 server.py</b> ile açın.</div>`));
+  }
+  $("#logoutBtn").onclick = async () => {
+    if (dirty && !(await confirmBox("Kaydedilmemiş değişiklikler var. Yine de çıkış yapılsın mı?", "Çıkış yap"))) return;
+    await fetch("/api/logout", { method: "POST" }).catch(() => {});
+    dirty = false; location.reload();
+  };
+  // Oturum geçerli mi? (yedek listesi korumalı uç; 401 dönerse giriş ekranı açılır)
+  if (!token) showLogin();
+  else _fetch("/api/backups", { headers: { "X-Auth": token } })
+    .then((r) => (r.ok ? start() : showLogin()))
+    .catch(() => showLogin());
 })();
