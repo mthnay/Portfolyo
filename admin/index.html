@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Yönetim Paneli — Portfolyo</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="admin.css" />
+</head>
+<body>
+  <aside class="side">
+    <div class="side__brand">SD<i>.</i> <span>Panel</span></div>
+    <nav class="side__nav">
+      <button data-view="settings"><span>⚙</span> Genel Ayarlar</button>
+      <button data-view="showreel"><span>▶</span> Showreel</button>
+      <button data-view="fields"><span>⊞</span> Özel Alanlar</button>
+      <button data-view="backups"><span>⟲</span> Yedekler</button>
+    </nav>
+    <div class="side__head">
+      <span>Markalar</span>
+      <button class="icon-btn" id="addBrand" title="Yeni marka ekle">＋</button>
+    </div>
+    <ul class="brand-list" id="brandList"></ul>
+    <p class="side__hint">Sıralamak için sürükleyin</p>
+  </aside>
+
+  <div class="main">
+    <header class="top">
+      <h1 id="viewTitle">Yönetim Paneli</h1>
+      <div class="top__actions">
+        <span class="status" id="status"></span>
+        <a class="btn btn--ghost" href="../" target="_blank">Siteyi aç ↗</a>
+        <button class="btn btn--primary" id="saveBtn" disabled>Kaydet <kbd>⌘S</kbd></button>
+      </div>
+    </header>
+    <section class="view" id="view"></section>
+  </div>
+
+  <div class="toast" id="toast"></div>
+  <dialog class="dialog" id="dialog">
+    <form method="dialog">
+      <p id="dialogText"></p>
+      <div class="dialog__actions">
+        <button value="cancel" class="btn btn--ghost">Vazgeç</button>
+        <button value="ok" class="btn btn--danger" id="dialogOk">Sil</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="admin.js"></script>
+</body>
+</html>

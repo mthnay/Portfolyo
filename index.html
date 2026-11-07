@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Sıla Dengiz — Portfolio</title>
+  <meta name="description" content="Sıla Dengiz — spor odaklı video çekim ve kurgu portfolyosu." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;700;900&family=Mrs+Saint+Delafield&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css?v=5" />
+</head>
+<body>
+  <!-- Preloader -->
+  <div class="loader" id="loader">
+    <div class="loader__count"><span id="loaderNum">0</span>%</div>
+    <div class="loader__bar"><i id="loaderBar"></i></div>
+  </div>
+  <div class="wipe" id="wipe"></div>
+
+  <!-- Cursor -->
+  <div class="cursor" id="cursor"><span id="cursorLabel"></span></div>
+
+  <!-- Nav -->
+  <header class="nav">
+    <a href="#top" class="nav__logo">SD<i>.</i></a>
+    <nav class="nav__links" id="navLinks"></nav>
+    <a href="#contact" class="nav__cta" data-magnetic>İletişim</a>
+  </header>
+  <div class="progress"><i id="progress"></i></div>
+
+  <main id="top">
+    <!-- Hero -->
+    <section class="hero">
+      <div class="hero__grid"></div>
+      <div class="hero__glow"></div>
+      <p class="hero__kicker"><span class="dot"></span> Video Çekim · Kurgu · Spor İçerik</p>
+      <h1 class="hero__title" aria-label="Portfolio">
+        <span class="hero__word" data-split>PORTFOLIO</span>
+      </h1>
+      <svg class="hero__sign" viewBox="0 0 900 220" aria-label="Sıla Dengiz">
+        <text x="50%" y="62%" text-anchor="middle">Sıla Dengiz</text>
+      </svg>
+      <div class="hero__meta">
+        <div><b id="statReels">0</b><span>Reel & kısa video</span></div>
+        <div><b id="statBrands">0</b><span>Marka & kulüp</span></div>
+        <div><b>2026</b><span>Sezon</span></div>
+      </div>
+      <div class="hero__scroll">Kaydır <i></i></div>
+    </section>
+
+    <!-- Showreel -->
+    <section class="sr" id="showreel">
+      <div class="sr__head">
+        <span class="sr__kicker"><i></i> Showreel</span>
+        <h2 class="sr__title" data-split id="srTitle">SHOWREEL</h2>
+      </div>
+      <div class="sr__frame" data-cursor="TAM VİDEO">
+        <div class="sr__player"><div id="srPlayer"></div></div>
+        <div class="sr__shield"></div>
+        <div class="sr__wipe" id="srWipe"></div>
+        <div class="sr__brand" id="srBrand"></div>
+        <div class="sr__hud">
+          <div class="sr__count"><b id="srIdx">01</b><span>/<i id="srTotal">00</i></span></div>
+          <div class="sr__btns">
+            <button class="sr__btn" id="srSound" aria-pressed="false"><span class="sr__eq"><i></i><i></i><i></i></span> <em>Sesi aç</em></button>
+          </div>
+        </div>
+        <div class="sr__bars" id="srBars"></div>
+        <button class="sr__play" id="srPlay" hidden>▶ Oynat</button>
+      </div>
+    </section>
+
+    <!-- Marquee -->
+    <section class="marquee" aria-hidden="true">
+      <div class="marquee__track" id="marquee"></div>
+    </section>
+
+    <!-- About -->
+    <section class="about">
+      <p class="about__text" data-reveal-words>
+        Sahadaki enerjiyi ekrana taşıyorum. Voleyboldan basketbola, maç günü atmosferinden oyuncu hikâyelerine kadar
+        <em>çekimden kurguya</em> her aşamayı üstlenerek markalar için durdurulamayan içerikler üretiyorum.
+      </p>
+    </section>
+
+    <!-- Brands get injected here -->
+    <div id="brands"></div>
+
+    <!-- Contact -->
+    <section class="contact" id="contact">
+      <p class="contact__kicker">Bir sonraki maç sizin.</p>
+      <h2 class="contact__title">
+        <span data-split>BİRLİKTE</span>
+        <span data-split class="outline">ÇEKELİM</span>
+      </h2>
+      <div class="contact__links" id="contactLinks"></div>
+      <footer class="foot">
+        <span>© 2026 Sıla Dengiz</span>
+        <a href="#top">Başa dön ↑</a>
+      </footer>
+    </section>
+  </main>
+
+  <!-- Modal -->
+  <div class="modal" id="modal" aria-hidden="true">
+    <button class="modal__close" id="modalClose" aria-label="Kapat">✕</button>
+    <div class="modal__body" id="modalBody"></div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+  <script src="https://unpkg.com/lenis@1.1.13/dist/lenis.min.js"></script>
+  <script src="main.js?v=5"></script>
+</body>
+</html>
