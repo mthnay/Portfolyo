@@ -49,7 +49,7 @@
           el.remove(); document.body.classList.remove("locked");
           if (!started) start();
         } catch (err) {
-          $("#loginErr").textContent = err.message === "Failed to fetch" ? "Panel bu adreste çalışmaz. Paneli bilgisayarında python3 server.py ile açıp http://localhost:5173/admin/ adresinden gir." : err.message;
+          $("#loginErr").textContent = err.message === "Failed to fetch" ? "Sunucuya ulaşılamadı. İnternet bağlantını kontrol et." : err.message;
           $("#loginPw").select();
         }
       });
@@ -58,6 +58,7 @@
     setTimeout(() => $("#loginPw")?.focus(), 50);
   }
 
+  const LOGO_PREVIEW = {}; // yeni yüklenen logolar yayına çıkana kadar yerel önizleme
   let data = null;
   let current = "settings"; // "settings" | "fields" | "backups" | brand key
   let dirty = false;
@@ -124,7 +125,7 @@
       const st = $("#status");
       st.className = "status saved";
       st.textContent = "✓ Kaydedildi · " + new Date().toLocaleTimeString("tr", { hour: "2-digit", minute: "2-digit" });
-      toast("Değişiklikler kaydedildi");
+      toast(window.__SD_STATIC__ ? "Kaydedildi — site 1-2 dakika içinde güncellenir" : "Değişiklikler kaydedildi");
     } catch (e) {
       btn.disabled = false;
       toast(e.message === "Failed to fetch" ? "Sunucuya ulaşılamadı. 'python3 server.py' çalışıyor mu?" : e.message, true);
@@ -321,7 +322,7 @@
           <label class="field"><span>Not</span><input type="text" data-bind="note" placeholder="örn. 2026 sezonu"></label>
           <div class="field full"><span>Logo <em>(sitede numara yerine görünür; PNG/SVG, şeffaf arka plan önerilir)</em></span>
             <div class="logo-up">
-              <div class="logo-up__prev${b.logoFit === "cover" ? " is-cover" : ""}">${b.logo ? `<img src="/${esc(b.logo)}" alt="">` : "<i>Logo yok</i>"}</div>
+              <div class="logo-up__prev${b.logoFit === "cover" ? " is-cover" : ""}">${b.logo ? `<img src="${esc(LOGO_PREVIEW[b.logo] || "/" + b.logo)}" alt="">` : "<i>Logo yok</i>"}</div>
               <label class="btn btn--sm">Dosya seç<input type="file" id="logoFile" accept="image/*" hidden></label>
               ${b.logo ? `<button type="button" class="btn btn--sm btn--danger" id="logoDel">Kaldır</button>` : ""}
               ${b.logo ? `<label class="switch"><input type="checkbox" id="logoCover" ${b.logoFit === "cover" ? "checked" : ""}> Daireyi tamamen doldur <em style="color:var(--mute);font-style:normal">(arka planlı logolar için)</em></label>` : ""}
@@ -371,6 +372,7 @@
       try {
         const r = await fetch("/api/upload?name=" + encodeURIComponent(f.name), { method: "POST", body: f });
         const j = await r.json(); if (!r.ok) throw new Error(j.error);
+        LOGO_PREVIEW[j.path] = URL.createObjectURL(f);
         b.logo = j.path; setDirty(); render(); toast("Logo yüklendi — Kaydet'e basmayı unutma");
       } catch (err) { toast(err.message || "Yükleme hatası", true); }
     });
